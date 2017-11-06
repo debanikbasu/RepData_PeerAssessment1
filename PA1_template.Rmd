@@ -1,0 +1,94 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup}
+library(dplyr)
+library(ggplot2)
+```
+
+## Loading and preprocessing the data
+
+Load the data (i.e. unzip and read.csv())
+```{r loading}
+unzip("activity.zip")
+act_data <-read.csv("activity.csv", header=TRUE)
+```
+
+## What is mean total number of steps taken per day?
+
+Make a histogram of the total number of steps taken each day
+
+```{r stepsday}
+steps_day <- act_data[!(is.na(act_data$steps)),]
+steps_hist <- tapply(steps_day$steps,steps_day$date,sum)
+hist(steps_hist,breaks=30,xlab="steps",ylab="frequency",main = "Histogram of steps per day")
+```
+
+Calculate and report the mean and median total number of steps taken per day
+```{r averagesteps}
+mean_steps <- mean(steps_hist,na.rm = TRUE)
+mean_steps
+median_steps <- median(steps_hist,na.rm = TRUE)
+median_steps
+```
+
+
+## What is the average daily activity pattern?
+
+Make a time series plot
+```{r activitypattern}
+steps_int <- tapply(steps_day$steps,steps_day$interval,mean)
+plot(names(steps_int),steps_int,type="l",xlab="interval",ylab="steps",main="Average steps per interval")
+```
+
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r maxsteps}
+steps_int[steps_int==max(steps_int)]
+```
+
+
+## Imputing missing values
+Calculate and report the total number of missing values in the dataset
+```{r missingval}
+sum(is.na(act_data$steps))
+```
+
+Create a new dataset that is equal to the original dataset but with the missing data filled in
+```{r newset}
+new_data <- act_data
+for(i in 1:nrow(new_data)){
+      if(is.na(new_data[i,1])){
+            new_data[i,1] <- steps_int[names(steps_int)==new_data[i,3]]
+      }
+}
+steps_new <- tapply(new_data$steps,new_data$date,sum)
+```
+
+Make a histogram of the total number of steps taken each day and calculate and report the mean and median total number of steps taken per day.
+```{r newhist}
+hist(steps_new,breaks=30,xlab="steps",ylab="frequency",main="Histogram of steps per day")
+
+mean_new <- mean(steps_new,na.rm = TRUE)
+mean_new
+
+median_new <- median(steps_new,na.rm = TRUE)
+median_new
+```
+
+
+## Are there differences in activity patterns between weekdays and weekends?
+Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+Make a panel plot containing a time series plot.
+```{r weekdaypattern}
+new_data$date <- as.Date(new_data$date)
+new_data <- mutate(new_data, weektype = ifelse(weekdays(new_data$date) == "Saturday" | weekdays(new_data$date) == "Sunday", "weekend", "weekday"))
+
+week_plot <- new_data %>% group_by(interval,weektype) %>% summarise(means=mean(steps))
+g <- ggplot(week_plot, aes(interval,means)) + geom_line() + facet_grid(weektype~.)
+g <- g + xlab("Intervals") + ylab("Average steps taken") + ggtitle("Average steps taken by weekdays and weekends")
+g
+```
